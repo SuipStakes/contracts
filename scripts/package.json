@@ -1,0 +1,16 @@
+{
+  "name": "scripts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@mysten/sui.js": "^0.32.2",
+    "dotenv": "^16.0.3",
+    "fetch": "^1.1.0",
+    "node-fetch": "^3.3.1"
+  },
+  "type": "module",
+  "scripts": {
+    "deploy": "node publish.js"
+  }
+}
