@@ -27,8 +27,10 @@ const keypair = Ed25519Keypair.deriveKeypair(RECOVERY_PHRASE);
 const connection = new Connection({
   fullnode: 'https://rpc.ankr.com/sui_testnet',
 });
-// connect to a custom RPC server
-const provider = new JsonRpcProvider(connection);
+// // connect to a custom RPC server
+// const provider = new JsonRpcProvider(connection);
+// connect to devnet
+const provider = new JsonRpcProvider();
 const signer = new RawSigner(keypair, provider);
 const { modules, dependencies } = JSON.parse(
   execSync(
@@ -46,3 +48,21 @@ const result = await signer.signAndExecuteTransactionBlock({
   transactionBlock: tx,
 });
 console.log({ result });
+
+const txn = await provider.getTransactionBlock({
+  digest: result.digest,
+  // only fetch the effects field
+    options: {
+        showEffects: true,
+        showInput: false,
+        showEvents: false,
+        showObjectChanges: false,
+        showBalanceChanges: false
+    }
+});
+
+console.log(txn);
+
+txn.effects?.created.forEach((e) => {
+  console.log(e.reference.objectId);
+});
