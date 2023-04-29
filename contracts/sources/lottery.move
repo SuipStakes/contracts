@@ -48,14 +48,13 @@ module suipstakes::lottery {
             },
             tx_context::sender(ctx)
         );
-        transfer::transfer<Lottery>(
+        transfer::share_object<Lottery>(
             Lottery {
                 id: object::new(ctx),
                 game_count: 0, 
                 active_game_ids: vector<u64>[],
                 games: vector<Game>[]
-            },
-            tx_context::sender(ctx)
+            }
         );
     }
 
