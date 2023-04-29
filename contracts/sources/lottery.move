@@ -8,21 +8,23 @@ module suipstakes::lottery {
     use sui::coin::{Self, Coin, TreasuryCap};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
-    use sui::object::{Self, UID};
+    use sui::object::{Self, ID, UID};
+    use sui::balance::{Self, Supply, Balance};
+    use sui::sui::SUI;
     // use sui::event;
 
     struct Lottery has key, store {
         id: UID,
         game_count: u64, 
-        active_game_ids: vector<UID>,
-        games: Table<u64, UID>
+        active_game_ids: vector<u64>,
+        games: vector<Game>
     }
 
-    struct Game has key, store {
-        id: UID, 
+    struct Game has store {
+        id: u64, 
         end_round: u64, 
         ticket_supply: u64, 
-        bank: Coin<0x2::sui::SUI>,
+        sui_balance: Balance<SUI>,
         status: u64, 
         winner: Option<u64>
     }
@@ -33,23 +35,25 @@ module suipstakes::lottery {
         ticket_id: u64
     }
     
-    struct AdminCap has key, store {
+    struct AdminCap has key {
         id: UID
     }
 
+    const STATUS_GAME_ACTIVE: u64 = 1;
+
     fun init(ctx: &mut TxContext) {
-        transfer::public_transfer<AdminCap>(
+        transfer::transfer<AdminCap>(
             AdminCap {
                 id: object::new(ctx)
             },
             tx_context::sender(ctx)
         );
-        transfer::public_transfer<Lottery>(
+        transfer::transfer<Lottery>(
             Lottery {
                 id: object::new(ctx),
                 game_count: 0, 
-                active_game_ids: vector<UID>[],
-                games: table::new<u64, UID>(ctx)
+                active_game_ids: vector<u64>[],
+                games: vector<Game>[]
             },
             tx_context::sender(ctx)
         );
@@ -68,15 +72,21 @@ module suipstakes::lottery {
         };
     }
 
-    // //Need to add check that only the contract owner can run this function.
-    // public entry fun issue(
-    //     treasury_cap: &mut TreasuryCap<LOTTERY>,
-    //     amount: u64,
-    //     recipient: address,
-    //     ctx: &mut TxContext
-    // ){
-    //     coin::mint_and_transfer(treasury_cap, amount, recipient, ctx)
-    // }
+    public entry fun create_game(_admin_cap: &mut AdminCap, lottery: &mut Lottery, round: u64) {
+        let new_game = Game {
+            id: lottery.game_count + 1,
+            end_round: round, 
+            ticket_supply: 0, 
+            sui_balance: balance::zero<SUI>(),
+            status: STATUS_GAME_ACTIVE,
+            winner: option::none<u64>()
+        };
 
+        lottery.game_count = lottery.game_count + 1;
+
+        vector::push_back<u64>(&mut lottery.active_game_ids, lottery.game_count);
+
+        vector::push_back<Game>(&mut lottery.games, new_game);
+    }
     
 }
