@@ -3,14 +3,14 @@ module suipstakes::lottery {
     // use std::ascii;
     use std::option::{Self, Option};
     use std::vector;
-    use sui::table::{Self, Table};
     // use sui::url::{Self, Url};
-    use sui::coin::{Self, Coin, TreasuryCap};
+    use sui::coin::{Self, Coin};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
-    use sui::object::{Self, ID, UID};
-    use sui::balance::{Self, Supply, Balance};
+    use sui::object::{Self, UID};
+    use sui::balance::{Self, Balance};
     use sui::sui::SUI;
+    use suipstakes::drand_lib::{derive_randomness, verify_drand_signature, safe_selection};
     // use sui::event;
 
     struct Lottery has key, store {
@@ -39,7 +39,13 @@ module suipstakes::lottery {
         id: UID
     }
 
+    const EGameNotActive: u64 = 1;
+    const EGameAlreadyCompleted: u64 = 2;
+    const EInvalidTicket: u64 = 3;
+
     const GAME_STATUS_ACTIVE: u64 = 1;
+    const GAME_STATUS_CLOSED: u64 = 2;
+    const GAME_STATUS_COMPLETED: u64 = 3;
 
     const TICKET_PRICE_SUI: u64 = 100;
 
@@ -60,7 +66,9 @@ module suipstakes::lottery {
         );
     }
 
-    fun add_admins(admins: vector<address>, ctx: &mut TxContext) {
+    //======================================= Admin functions ======================================
+
+    fun add_admins(_admin_cap: &mut AdminCap, admins: vector<address>, ctx: &mut TxContext) {
         let i: u64 = 0;
         while(i < vector::length<address>(&admins)){
             transfer::transfer<AdminCap>(
@@ -90,9 +98,31 @@ module suipstakes::lottery {
         lottery.game_count = lottery.game_count + 1;
     }
 
-    public entry fun purchase_tickets(lottery: &mut Lottery, game_id: u64, ticket_amount: u64, sui: Coin<SUI>, ctx:  &mut TxContext) {
+    //======================================= User functions =======================================
+
+    public entry fun close_game(lottery: &mut Lottery, game_id: u64, drand_sig: vector<u8>, drand_prev_sig: vector<u8>) {
         
-        let game_mut_ref = vector::borrow_mut<Game>(&mut lottery.games, game_id);
+        let game_mut_ref = fetch_game_mut_ref(lottery, game_id);
+
+        assert!(game_mut_ref.status == GAME_STATUS_ACTIVE, EGameNotActive);
+        verify_drand_signature(drand_sig, drand_prev_sig, closing_round(game_mut_ref.end_round));
+        game_mut_ref.status = GAME_STATUS_CLOSED;
+    }
+
+    public entry fun complete_game(lottery: &mut Lottery, game_id: u64, drand_sig: vector<u8>, drand_prev_sig: vector<u8>) {
+        let game_mut_ref = fetch_game_mut_ref(lottery, game_id);
+
+        assert!(game_mut_ref.status != GAME_STATUS_COMPLETED, EGameAlreadyCompleted);
+        verify_drand_signature(drand_sig, drand_prev_sig, game_mut_ref.end_round);
+        game_mut_ref.status = GAME_STATUS_COMPLETED;
+        // The randomness is derived from drand_sig by passing it through sha2_256 to make it uniform.
+        let digest = derive_randomness(drand_sig);
+        game_mut_ref.winner = option::some(safe_selection(game_mut_ref.ticket_supply, &digest));
+    }
+
+    public fun purchase_tickets(lottery: &mut Lottery, game_id: u64, ticket_amount: u64, sui: Coin<SUI>, ctx: &mut TxContext) {
+        
+        let game_mut_ref = fetch_game_mut_ref(lottery, game_id);
         
         // Make sure game is active
         let game_status = game_mut_ref.status;
@@ -123,7 +153,39 @@ module suipstakes::lottery {
         };
 
         transfer::public_transfer<Coin<SUI>>(sui, tx_context::sender(ctx))
-
     }
+
+    public entry fun redeem(ticket: &Ticket, game_id: u64, lottery: &mut Lottery, winner_sui_coin: Coin<SUI>, ctx: &mut TxContext) {
+        assert!(game_id == ticket.game_id, EInvalidTicket);
+
+        let game_mut_ref = fetch_game_mut_ref(lottery, game_id);
+
+        assert!(option::contains(&game_mut_ref.winner, &ticket.ticket_id), EInvalidTicket);
+
+        
+        let game_balance_mut_ref = &mut game_mut_ref.sui_balance;
+        let game_balance_amount = balance::value<SUI>(game_balance_mut_ref);
+        let game_winning_coin = coin::take<SUI>(game_balance_mut_ref, game_balance_amount, ctx);
+        coin::join<SUI>(&mut winner_sui_coin, game_winning_coin);
+
+        transfer::public_transfer(winner_sui_coin, tx_context::sender(ctx));
+
+        // let winner = GameWinner {
+        //     id: object::new(ctx),
+        //     game_id: ticket.game_id,
+        // };
+        // transfer::public_transfer(winner, tx_context::sender(ctx));
+    }
+
+    //====================================== Helper functions ======================================
+
+    fun fetch_game_mut_ref(lottery: &mut Lottery, game_id: u64): &mut Game {
+        vector::borrow_mut<Game>(&mut lottery.games, game_id)
+    }
+
+    fun closing_round(round: u64): u64 {
+        round - 2
+    }
+
     
 }
