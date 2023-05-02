@@ -8,7 +8,7 @@ module suipstakes::lottery_tests {
 
 
     #[test]
-    public fun add_admins() {
+    public fun test_add_admin_success_add_address() {
         let owner = @0xA;
         let new_admin = @0xB;
 
@@ -17,23 +17,76 @@ module suipstakes::lottery_tests {
         {
             lottery::test_init(ctx(&mut scenario));
         };
+        next_tx(&mut scenario, owner);
+
+        //new_admin does NOT have Admin Cap before add_admin
+        assert!(!has_most_recent_for_address<AdminCap>(new_admin), 0);
+
+        //owner has an admin cap
+        assert!(has_most_recent_for_address<AdminCap>(owner), 0);
 
         // Add Admin
-        next_tx(&mut scenario, owner);
         {   
-            //new_admin does NOT have Admin Cap
-            assert!(!has_most_recent_for_address<AdminCap>(new_admin), 0);
-
             let adminCap = take_from_sender<AdminCap>(&mut scenario);
             lottery::add_admins(&mut adminCap, vector<address>[new_admin], ctx(&mut scenario));
 
-            //new_admin HAS Admin Cap
-            assert!(has_most_recent_for_address<AdminCap>(new_admin), 0);
+            return_to_sender<AdminCap>(&mut scenario, adminCap);
+        };
+        let _tx_effects = test_scenario::end(scenario);
+
+        //new_admin does have Admin Cap before add_admin
+        assert!(has_most_recent_for_address<AdminCap>(new_admin), 0);
+
+        //owner still has an admin cap
+        assert!(has_most_recent_for_address<AdminCap>(owner), 0);
+    }
+
+    #[test]
+    public fun test_add_admin_success_add_many_addresses() {
+        let owner = @0xA;
+        let new_admin1 = @0xB;
+        let new_admin2 = @0xC;
+        let new_admin3 = @0xD;
+        let new_admin4 = @0xE;
+
+        // Begins a multi transaction scenario with owner as the sender
+        let scenario = test_scenario::begin(owner);
+        {
+            lottery::test_init(ctx(&mut scenario));
+        };
+        next_tx(&mut scenario, owner);
+
+        // Assert that the new admins do not have an AdminCap yet
+        assert!(!has_most_recent_for_address<AdminCap>(new_admin1), 0);
+        assert!(!has_most_recent_for_address<AdminCap>(new_admin2), 0);
+        assert!(!has_most_recent_for_address<AdminCap>(new_admin3), 0);
+        assert!(!has_most_recent_for_address<AdminCap>(new_admin4), 0);
+
+        // Assert that the module owner does have an AdminCap
+        assert!(has_most_recent_for_address<AdminCap>(owner), 0);
+
+        // Add Admin
+        {   
+            let adminCap = take_from_sender<AdminCap>(&mut scenario);
+
+            lottery::add_admins(
+                &mut adminCap, 
+                vector<address>[new_admin1, new_admin2, new_admin3, new_admin4], 
+                ctx(&mut scenario)
+            );
 
             return_to_sender<AdminCap>(&mut scenario, adminCap);
         };
+        let _tx_effects = test_scenario::end(scenario);
 
-        test_scenario::end(scenario);
+        // Assert that the new admins do have an AdminCap
+        assert!(has_most_recent_for_address<AdminCap>(new_admin1), 0);
+        assert!(has_most_recent_for_address<AdminCap>(new_admin2), 0);
+        assert!(has_most_recent_for_address<AdminCap>(new_admin3), 0);
+        assert!(has_most_recent_for_address<AdminCap>(new_admin4), 0);
+
+        //owner still has an admin cap
+        assert!(has_most_recent_for_address<AdminCap>(owner), 0);
     }
 
     // #[test]
@@ -67,7 +120,7 @@ module suipstakes::lottery_tests {
     // }
 
     #[test]
-    public fun create_game() {
+    public fun test_create_game_success() {
         let owner = @0xA;
 
         // Begins a multi transaction scenario with owner as the sender
