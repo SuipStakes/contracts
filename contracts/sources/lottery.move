@@ -68,7 +68,7 @@ module suipstakes::lottery {
 
     //======================================= Admin functions ======================================
 
-    fun add_admins(_admin_cap: &mut AdminCap, admins: vector<address>, ctx: &mut TxContext) {
+    public entry fun add_admins(_admin_cap: &mut AdminCap, admins: vector<address>, ctx: &mut TxContext) {
         let i: u64 = 0;
         while(i < vector::length<address>(&admins)){
             transfer::transfer<AdminCap>(
@@ -81,10 +81,21 @@ module suipstakes::lottery {
         };
     }
 
-    public entry fun create_game(_admin_cap: &mut AdminCap, lottery: &mut Lottery, round: u64) {
+    //This doesn't work either, my assert is failing.
+
+    // public entry fun add_admin(_admin_cap: &mut AdminCap, new_admin: address, ctx: &mut TxContext) {
+    //     transfer::transfer<AdminCap>(
+    //         AdminCap {
+    //             id: object::new(ctx)
+    //         },
+    //         new_admin
+    //     );
+    // }
+
+    public entry fun create_game(_admin_cap: &mut AdminCap, lottery: &mut Lottery, end_round: u64) {
         let new_game = Game {
             id: lottery.game_count,
-            end_round: round, 
+            end_round: end_round, 
             ticket_supply: 0, 
             sui_balance: balance::zero<SUI>(),
             status: GAME_STATUS_ACTIVE,
@@ -186,6 +197,40 @@ module suipstakes::lottery {
     fun closing_round(round: u64): u64 {
         round - 2
     }
-
     
+    //====================================== Lottery Helper functions ======================================
+    public fun get_game_count(lottery: &Lottery): u64 {
+        lottery.game_count
+    }
+
+    public fun get_active_game_ids(lottery: &Lottery): vector<u64> {
+        lottery.active_game_ids
+    }
+
+    public fun get_games(lottery: &Lottery): &vector<Game> {
+        &lottery.games
+    }
+
+    //====================================== Game Helper functions ======================================
+    public fun get_game_end_round(game: &Game): u64 {
+        game.end_round
+    }
+
+    public fun get_game_ticket_supply(game: &Game): u64 {
+        game.ticket_supply
+    }
+
+    public fun get_game_status(game: &Game): u64 {
+        game.status
+    }
+
+    public fun get_game_winner(game: &Game): Option<u64> {
+        game.winner
+    }
+
+
+    #[test_only]
+    public fun test_init(ctx: &mut TxContext) {
+        init(ctx)
+    }
 }
