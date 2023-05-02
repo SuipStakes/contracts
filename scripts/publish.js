@@ -23,14 +23,14 @@ const RECOVERY_PHRASE = process.env.RECOVERY_PHRASE;
 
 // Generate a new Keypair
 const keypair = Ed25519Keypair.deriveKeypair(RECOVERY_PHRASE);
-// Construct your connection:
-const connection = new Connection({
-  fullnode: 'https://rpc.ankr.com/sui_testnet',
-});
-// connect to a custom RPC server
-const provider = new JsonRpcProvider(connection);
-// // connect to devnet
-// const provider = new JsonRpcProvider();
+// // Construct your connection:
+// const connection = new Connection({
+//   fullnode: 'https://rpc.ankr.com/sui_testnet',
+// });
+// // connect to a custom RPC server
+// const provider = new JsonRpcProvider(connection);
+// connect to devnet
+const provider = new JsonRpcProvider();
 const signer = new RawSigner(keypair, provider);
 const { modules, dependencies } = JSON.parse(
   execSync(
