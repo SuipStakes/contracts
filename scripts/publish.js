@@ -27,10 +27,10 @@ const keypair = Ed25519Keypair.deriveKeypair(RECOVERY_PHRASE);
 const connection = new Connection({
   fullnode: 'https://rpc.ankr.com/sui_testnet',
 });
-// // connect to a custom RPC server
-// const provider = new JsonRpcProvider(connection);
-// connect to devnet
-const provider = new JsonRpcProvider();
+// connect to a custom RPC server
+const provider = new JsonRpcProvider(connection);
+// // connect to devnet
+// const provider = new JsonRpcProvider();
 const signer = new RawSigner(keypair, provider);
 const { modules, dependencies } = JSON.parse(
   execSync(
