@@ -48,21 +48,3 @@ const result = await signer.signAndExecuteTransactionBlock({
   transactionBlock: tx,
 });
 console.log({ result });
-
-const txn = await provider.getTransactionBlock({
-  digest: result.digest,
-  // only fetch the effects field
-    options: {
-        showEffects: true,
-        showInput: false,
-        showEvents: false,
-        showObjectChanges: false,
-        showBalanceChanges: false
-    }
-});
-
-console.log(txn);
-
-txn.effects?.created.forEach((e) => {
-  console.log(e.reference.objectId);
-});
